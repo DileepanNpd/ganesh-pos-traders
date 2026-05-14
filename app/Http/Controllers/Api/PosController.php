@@ -152,6 +152,7 @@ class PosController extends ApiBaseController
         $order->tax_amount = $orderDetails['tax_amount'];
         $order->discount = $orderDetails['discount'];
         $order->shipping = $orderDetails['shipping'];
+        $order->round_off = isset($orderDetails['round_off']) ? $orderDetails['round_off'] : 0;
         $order->subtotal = 0;
         $order->total = $orderDetails['subtotal'];
         $order->paid_amount = 0;
@@ -196,7 +197,7 @@ class PosController extends ApiBaseController
 
         Common::updateOrderAmount($order->id);
 
-        $savedOrder = Order::select('id', 'unique_id', 'invoice_number', 'user_id', 'staff_user_id', 'order_date', 'discount', 'shipping', 'tax_amount', 'subtotal', 'total', 'paid_amount', 'due_amount', 'total_items', 'total_quantity')
+        $savedOrder = Order::select('id', 'unique_id', 'invoice_number', 'user_id', 'staff_user_id', 'order_date', 'discount', 'shipping', 'round_off', 'tax_amount', 'subtotal', 'total', 'paid_amount', 'due_amount', 'total_items', 'total_quantity')
             ->with(['user:id,name', 'items:id,order_id,product_id,unit_id,unit_price,subtotal,quantity,mrp,total_tax', 'items.product:id,name', 'items.unit:id,name,short_name', 'orderPayments:id,order_id,payment_id,amount', 'orderPayments.payment:id,payment_mode_id', 'orderPayments.payment.paymentMode:id,name', 'staffMember:id,name'])
             ->find($order->id);
 

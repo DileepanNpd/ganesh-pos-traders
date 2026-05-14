@@ -118,6 +118,12 @@
                         {{ formatAmountCurrency(order.shipping) }}
                     </a-col>
                 </a-row>
+                <a-row v-if="order.round_off != 0" class="mt-10">
+                    <a-col :span="12">{{ $t("stock.round_off") }}</a-col>
+                    <a-col :span="12" class="text-right">
+                        {{ formatAmountCurrency(order.round_off) }}
+                    </a-col>
+                </a-row>
             </div>
             <div class="item-total pd-10">
                 <a-row class="mt-10">

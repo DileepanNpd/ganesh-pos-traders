@@ -44,6 +44,7 @@ class Order extends BaseModel
         'tax_amount' => 'double',
         'discount' => 'double',
         'shipping' => 'double',
+        'round_off' => 'double',
         'subtotal' => 'double',
         'total' => 'double',
         'paid_amount' => 'double',

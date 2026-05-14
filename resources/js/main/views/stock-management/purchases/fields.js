@@ -30,6 +30,7 @@ const fields = () => {
         warehouse_id: undefined,
         discount: 0,
         shipping: 0,
+        round_off: 0,
         subtotal: 0,
         discount_type: 'percentage',
         discount_value:0

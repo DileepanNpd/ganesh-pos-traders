@@ -1162,6 +1162,7 @@ class LangTrans
             'order_tax' => 'Order Tax',
             'discount' => 'Discount',
             'shipping' => 'Shipping',
+            'round_off' => 'Round Off',
             'grand_total' => 'Grand Total',
             'remarks' => 'Remarks',
             'pay_now' => 'Pay Now',

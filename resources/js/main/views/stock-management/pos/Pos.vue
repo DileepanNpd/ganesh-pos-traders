@@ -383,7 +383,9 @@
                                         {{ $t("product.tax") }} :
                                         {{ formatAmountCurrency(formData.tax_amount) }} |
                                         {{ $t("product.discount") }} :
-                                        {{ formatAmountCurrency(formData.discount) }}
+                                        {{ formatAmountCurrency(formData.discount) }} |
+                                        {{ $t("stock.round_off") }} :
+                                        {{ formatAmountCurrency(formData.round_off) }}
                                     </small>
                                 </a-col>
                                 <a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
@@ -1214,7 +1216,10 @@ export default {
 
             total = total + parseFloat(formData.value.shipping);
 
-            formData.value.subtotal = formatAmount(total + tax);
+            const rawTotal = total + tax;
+            const roundedTotal = Math.round(rawTotal);
+            formData.value.round_off = formatAmount(roundedTotal - rawTotal);
+            formData.value.subtotal = formatAmount(roundedTotal);
             formData.value.tax_amount = formatAmount(tax);
             formData.value.discount = discountAmount;
         };
@@ -1296,6 +1301,7 @@ export default {
                 discount_value: 0,
                 discount: 0,
                 shipping: 0,
+                round_off: 0,
                 subtotal: 0,
             };
 

@@ -229,6 +229,12 @@
                     <td class="no-border">Shipping</td>
                     <td class="right no-border">{{ number_format($order->ship, 2) }}</td>
                 </tr>
+                @if($order->round_off != 0)
+                <tr>
+                    <td class="no-border">Round Off</td>
+                    <td class="right no-border">{{ number_format($order->round_off, 2) }}</td>
+                </tr>
+                @endif
                 <tr class="bold">
                     <td class="no-border">Net Amount</td>
                     <td class="right no-border">{{ number_format($order->total, 2) }}</td>

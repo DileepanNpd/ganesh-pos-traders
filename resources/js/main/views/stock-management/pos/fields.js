@@ -26,6 +26,7 @@ const fields = () => {
         discount_value: 0,
         discount: 0,
         shipping: 0,
+        round_off: 0,
         subtotal: 0,
     });
 

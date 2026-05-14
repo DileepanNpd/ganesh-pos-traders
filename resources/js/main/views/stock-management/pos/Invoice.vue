@@ -149,6 +149,19 @@
                                     {{ formatAmountCurrency(order.shipping) }}
                                 </td>
                             </tr>
+                            <tr v-if="order.round_off != 0" class="item-row-other">
+                                <td
+                                    :colspan="
+                                        selectedWarehouse.show_mrp_on_invoice ? 4 : 3
+                                    "
+                                    style="text-align: right"
+                                >
+                                    {{ $t("stock.round_off") }}
+                                </td>
+                                <td colspan="2" style="text-align: right">
+                                    {{ formatAmountCurrency(order.round_off) }}
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

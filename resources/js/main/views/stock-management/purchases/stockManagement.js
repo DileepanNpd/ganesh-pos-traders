@@ -283,7 +283,10 @@ const stockManagement = () => {
         const tax = total * (taxRate / 100);
         total = total + parseFloat(formData.value.shipping);
 
-        formData.value.subtotal = formatAmount(total + tax);
+        const rawTotal = total + tax;
+        const roundedTotal = Math.round(rawTotal);
+        formData.value.round_off = formatAmount(roundedTotal - rawTotal);
+        formData.value.subtotal = formatAmount(roundedTotal);
         formData.value.tax_amount = formatAmount(tax);
         formData.value.discount = discountAmount;
     };

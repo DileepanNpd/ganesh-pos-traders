@@ -517,6 +517,14 @@
                             {{ formatAmountCurrency(formData.shipping) }}
                         </a-col>
                     </a-row>
+                    <a-row :gutter="16" class="mt-10" v-if="formData.round_off != 0">
+                        <a-col :xs="12" :sm="12" :md="12" :lg="12">
+                            {{ $t("stock.round_off") }}
+                        </a-col>
+                        <a-col :xs="12" :sm="12" :md="12" :lg="12">
+                            {{ formatAmountCurrency(formData.round_off) }}
+                        </a-col>
+                    </a-row>
                     <a-row :gutter="16" class="mt-10">
                         <a-col :xs="12" :sm="12" :md="12" :lg="12">
                             {{ $t("stock.grand_total") }}
@@ -825,6 +833,9 @@ export default {
                     shipping: orderResponseData.order.shipping
                         ? orderResponseData.order.shipping
                         : 0,
+                    round_off: orderResponseData.order.round_off
+                        ? orderResponseData.order.round_off
+                        : 0,
                     subtotal: orderResponseData.order.total,
                 };
                 selectedProductIds.value = orderResponseData.ids;
@@ -860,6 +871,7 @@ export default {
             const newFormDataObject = {
                 ...formData.value,
                 total: formData.value.subtotal,
+                round_off: formData.value.round_off,
                 total_items: selectedProducts.value.length,
                 product_items: selectedProducts.value,
                 removed_items: removedOrderItemsIds.value,
