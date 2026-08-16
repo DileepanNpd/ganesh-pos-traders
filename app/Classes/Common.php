@@ -29,6 +29,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseHistory;
 use App\Scopes\CompanyScope;
 use Carbon\Carbon;
+use Examyou\RestAPI\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -582,6 +583,11 @@ class Common
         $orderDeletable = true;
         $actionType = $oldOrderId != "" ? "edit" : "add";
 
+        // Guard: a linked return cannot send back more than was sold/purchased and not yet returned
+        if (($orderType == 'sales-returns' || $orderType == 'purchase-returns') && $order->original_order_id) {
+            self::assertReturnableQuantities($order, $productItems);
+        }
+
         $orderSubTotal = 0;
         $totalQuantities = 0;
         if (count($productItems) > 0) {
@@ -692,7 +698,84 @@ class Common
         // Update Customer or Supplier total amount, due amount, paid amount
         self::updateOrderAmount($order->id);
 
+        // Keep the original document's per-item returned_quantity in sync
+        if (($orderType == 'sales-returns' || $orderType == 'purchase-returns') && $order->original_order_id) {
+            self::recalculateReturnedQuantities($order->original_order_id);
+        }
+
         return $order;
+    }
+
+    // Sum of quantities already returned against an original order, keyed by product_id.
+    // Optionally excludes a single return document (used when editing that return).
+    public static function getReturnedQuantities($originalOrderId, $excludeReturnOrderId = null)
+    {
+        if (!$originalOrderId) {
+            return [];
+        }
+
+        $query = OrderItem::query()
+            ->select('order_items.product_id', DB::raw('SUM(order_items.quantity) as returned'))
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.original_order_id', $originalOrderId);
+
+        if ($excludeReturnOrderId) {
+            $query->where('orders.id', '!=', $excludeReturnOrderId);
+        }
+
+        return $query->groupBy('order_items.product_id')
+            ->pluck('returned', 'order_items.product_id')
+            ->toArray();
+    }
+
+    // Recompute returned_quantity on every line of the original sale/purchase
+    // from the returns currently linked to it.
+    public static function recalculateReturnedQuantities($originalOrderId)
+    {
+        if (!$originalOrderId) {
+            return;
+        }
+
+        $returned = self::getReturnedQuantities($originalOrderId);
+        $originalItems = OrderItem::where('order_id', $originalOrderId)->get();
+
+        foreach ($originalItems as $item) {
+            $item->returned_quantity = isset($returned[$item->product_id]) ? $returned[$item->product_id] : 0;
+            $item->save();
+        }
+    }
+
+    // Throws if any requested return line exceeds the still-returnable quantity
+    // of the original document. Called before persisting a return's items.
+    public static function assertReturnableQuantities($order, $productItems)
+    {
+        $originalItems = OrderItem::where('order_id', $order->original_order_id)
+            ->with('product')
+            ->get()
+            ->keyBy('product_id');
+
+        // Already returned across OTHER return documents (exclude this one when editing)
+        $excludeId = $order->id ?? null;
+        $alreadyReturned = self::getReturnedQuantities($order->original_order_id, $excludeId);
+
+        foreach ($productItems as $productItem) {
+            $productItem = (object) $productItem;
+            $productId = self::getIdFromHash($productItem->xid);
+            $requested = (float) $productItem->quantity;
+
+            if (!isset($originalItems[$productId])) {
+                throw new ApiException('A product being returned is not part of the original document and cannot be returned.');
+            }
+
+            $soldQty = (float) $originalItems[$productId]->quantity;
+            $prevReturned = isset($alreadyReturned[$productId]) ? (float) $alreadyReturned[$productId] : 0;
+            $name = optional($originalItems[$productId]->product)->name;
+
+            if (($prevReturned + $requested) > $soldQty) {
+                $remaining = $soldQty - $prevReturned;
+                throw new ApiException('Return quantity for "' . $name . '" exceeds returnable quantity. Max returnable: ' . $remaining);
+            }
+        }
     }
 
     public static function updateProductCustomFields($product, $warehouseId)

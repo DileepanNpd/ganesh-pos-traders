@@ -41,6 +41,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
 
         // Reports
         ApiRoute::post('reports/profit-loss', ['as' => 'api.reports.profit-loss', 'uses' => 'ReportController@profitLoss']);
+        ApiRoute::get('reports/open-bills', ['as' => 'api.reports.open-bills', 'uses' => 'ReportController@openBills']);
         // Warehouse History
         ApiRoute::resource('warehouse-history', 'WarehouseHistoryController', ['as' => 'api', 'only' => ['index']]);
     });
@@ -120,6 +121,14 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
         ApiRoute::resource('warehouses', 'WarehouseController',  ['as' => 'api', 'except' => ['index']]);
         ApiRoute::resource('custom-fields', 'CustomFieldController', $options);
         ApiRoute::resource('stock-adjustments', 'StockAdjustmentController', $options);
+        // Returnable items of the original sale/purchase (used to pre-fill a return document)
+        ApiRoute::get('purchase-returns/original-order/{xid}', ['as' => 'api.purchase-returns.original-order', 'uses' => 'PurchaseReturnsController@returnableOrder']);
+        ApiRoute::get('sales-returns/original-order/{xid}', ['as' => 'api.sales-returns.original-order', 'uses' => 'SalesReturnsController@returnableOrder']);
+
+        // Return documents linked to a sale/purchase (unified transaction view)
+        ApiRoute::get('sales/{xid}/linked-returns', ['as' => 'api.sales.linked-returns', 'uses' => 'SalesController@linkedReturns']);
+        ApiRoute::get('purchases/{xid}/linked-returns', ['as' => 'api.purchases.linked-returns', 'uses' => 'PurchaseController@linkedReturns']);
+
         ApiRoute::resource('purchases', 'PurchaseController', $options);
         ApiRoute::resource('purchase-returns', 'PurchaseReturnsController', $options);
         ApiRoute::resource('stock-transfers', 'StockTransferController', $options);
