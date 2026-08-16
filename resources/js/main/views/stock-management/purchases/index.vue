@@ -181,7 +181,8 @@ export default {
             user_id: undefined,
             dates: [],
             searchColumn: "invoice_number",
-            searchString: "",
+            // Pre-fill search when arriving from a report (e.g. Open Bills → bill)
+            searchString: route.query.search ? route.query.search : "",
         });
 
         onMounted(() => {

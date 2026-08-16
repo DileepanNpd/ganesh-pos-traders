@@ -59,6 +59,11 @@
                 size="middle"
             >
                 <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'invoice_number'">
+                        <a-typography-link @click="goToBill(record)">
+                            {{ record.invoice_number }}
+                        </a-typography-link>
+                    </template>
                     <template v-if="column.dataIndex === 'order_type'">
                         {{
                             record.order_type == "purchases"
@@ -106,6 +111,7 @@
 <script>
 import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import { debounce } from "lodash-es";
 import common from "../../../../common/composable/common";
 import AdminPageHeader from "../../../../common/layouts/AdminPageHeader.vue";
@@ -116,6 +122,7 @@ export default {
     },
     setup() {
         const { t } = useI18n();
+        const router = useRouter();
         const { formatDate, formatAmountCurrency, selectedWarehouse } = common();
 
         const bills = ref([]);
@@ -164,6 +171,20 @@ export default {
             fetchBills();
         }, 500);
 
+        // Jump from a report row to the actual bill in its Sales/Purchases list,
+        // pre-filtered to that invoice number.
+        const goToBill = (record) => {
+            const routeName =
+                record.order_type == "purchases"
+                    ? "admin.stock.purchases.index"
+                    : "admin.stock.sales.index";
+
+            router.push({
+                name: routeName,
+                query: { search: record.invoice_number },
+            });
+        };
+
         onMounted(fetchBills);
         watch(selectedWarehouse, fetchBills);
 
@@ -177,6 +198,7 @@ export default {
             formatAmountCurrency,
             fetchBills,
             onDaysChange,
+            goToBill,
         };
     },
 };
