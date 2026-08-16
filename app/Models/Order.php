@@ -15,9 +15,9 @@ class Order extends BaseModel
 
     protected $guarded = ['id', 'warehouse_id', 'staff_user_id', 'order_type', 'created_at', 'updated_at'];
 
-    protected $hidden = ['id', 'warehouse_id', 'from_warehouse_id', 'user_id', 'tax_id', 'staff_user_id', 'cancelled_by'];
+    protected $hidden = ['id', 'warehouse_id', 'from_warehouse_id', 'user_id', 'tax_id', 'staff_user_id', 'cancelled_by', 'original_order_id'];
 
-    protected $appends = ['xid', 'x_warehouse_id', 'x_from_warehouse_id', 'x_user_id', 'x_tax_id', 'x_staff_user_id', 'x_cancelled_by', 'document_url'];
+    protected $appends = ['xid', 'x_warehouse_id', 'x_from_warehouse_id', 'x_user_id', 'x_tax_id', 'x_staff_user_id', 'x_cancelled_by', 'x_original_order_id', 'document_url'];
 
     protected $dates = ['order_date'];
 
@@ -30,6 +30,7 @@ class Order extends BaseModel
         'getXTaxIdAttribute' => 'tax_id',
         'getXStaffUserIdAttribute' => 'staff_user_id',
         'getXCancelledByAttribute' => 'cancelled_by',
+        'getXOriginalOrderIdAttribute' => 'original_order_id',
     ];
 
     protected $casts = [
@@ -70,6 +71,18 @@ class Order extends BaseModel
     public function items()
     {
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
+    }
+
+    // The original sale/purchase that this return document was created against
+    public function originalOrder()
+    {
+        return $this->belongsTo(Order::class, 'original_order_id', 'id');
+    }
+
+    // All return documents (sales-returns / purchase-returns) linked to this order
+    public function returns()
+    {
+        return $this->hasMany(Order::class, 'original_order_id', 'id');
     }
 
     public function orderPayments()

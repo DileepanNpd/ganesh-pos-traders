@@ -112,6 +112,17 @@ export default [
                     menuKey: "profit_loss",
                 },
             },
+            {
+                path: "open-bills",
+                component: () =>
+                    import("../views/reports/open-bills/index.vue"),
+                name: "admin.reports.open_bills.index",
+                meta: {
+                    requireAuth: true,
+                    menuParent: "reports",
+                    menuKey: "open_bills",
+                },
+            },
         ],
     },
 ];

@@ -938,7 +938,7 @@ import {
     MinusSquareOutlined,
 } from "@ant-design/icons-vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import apiAdmin from "../../../../common/composable/apiAdmin";
 import stockManagement from "./stockManagement";
 import common from "../../../../common/composable/common";
@@ -995,6 +995,7 @@ export default {
             orderType,
             orderPageObject,
             selectedProducts,
+            selectedProductIds,
             formData,
             productsAmount,
             taxes,
@@ -1023,6 +1024,7 @@ export default {
         const warehouses = ref([]);
         const allUnits = ref([]);
         const router = useRouter();
+        const route = useRoute();
         const allOrderStatus = ref([]);
         const paymentModes = ref([]);
         const paymentModeUrl = "payment-modes?limit=10000";
@@ -1077,7 +1079,40 @@ export default {
             } else if (orderType.value == "stock-transfers") {
                 allOrderStatus.value = salesOrderStatus;
             }
+
+            // When a return is opened from a sale/purchase invoice, pre-fill its
+            // items (with the still-returnable quantities) and link it back.
+            const originalOrderId = route.query.original_order_id;
+            if (
+                originalOrderId &&
+                (orderType.value == "sales-returns" ||
+                    orderType.value == "purchase-returns")
+            ) {
+                prefillFromOriginalOrder(originalOrderId);
+            }
         });
+
+        const prefillFromOriginalOrder = (originalOrderId) => {
+            axiosAdmin
+                .get(`${orderType.value}/original-order/${originalOrderId}`)
+                .then((response) => {
+                    const data = response.data;
+
+                    selectedProducts.value = data.items.map((item, index) => ({
+                        ...item,
+                        sn: index + 1,
+                    }));
+                    selectedProductIds.value = data.ids ? data.ids : [];
+
+                    formData.value.x_original_order_id = originalOrderId;
+                    if (data.order && data.order.x_user_id) {
+                        formData.value.user_id = data.order.x_user_id;
+                    }
+
+                    recalculateFinalTotal();
+                })
+                .catch(() => {});
+        };
 
         const onSubmit = () => {
             allPayments.value = [];
@@ -1090,6 +1125,7 @@ export default {
                 round_off: formData.value.round_off,
                 total_items: selectedProducts.value.length,
                 product_items: selectedProducts.value,
+                x_original_order_id: formData.value.x_original_order_id,
                 pay_object: formFields.value,
                 all_payments: allPayments.value,
             };
