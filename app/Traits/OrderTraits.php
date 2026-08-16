@@ -135,99 +135,6 @@ trait OrderTraits
         }
     }
 
-    // Returns the original sale/purchase together with each line's still-returnable
-    // quantity, so the return-create screen can be pre-filled from an invoice.
-    public function returnableOrder(...$args)
-    {
-        $xid = last(func_get_args());
-        $originalId = Common::getIdFromHash($xid);
-        $originalType = $this->orderType == 'sales-returns' ? 'sales' : 'purchases';
-
-        $order = Order::where('id', $originalId)
-            ->where('order_type', $originalType)
-            ->first();
-
-        if (!$order) {
-            throw new ResourceNotFoundException();
-        }
-
-        $returned = Common::getReturnedQuantities($originalId);
-        $allOrderItems = OrderItem::with('product')->where('order_id', $originalId)->get();
-
-        $items = [];
-        $selectProductIds = [];
-        $sn = 1;
-
-        foreach ($allOrderItems as $orderItem) {
-            $alreadyReturned = isset($returned[$orderItem->product_id]) ? (float) $returned[$orderItem->product_id] : 0;
-            $remaining = $orderItem->quantity - $alreadyReturned;
-
-            // Skip lines that have already been fully returned
-            if ($remaining <= 0) {
-                continue;
-            }
-
-            $unit = $orderItem->unit_id != null ? Unit::find($orderItem->unit_id) : null;
-
-            $items[] = [
-                'sn'                => $sn,
-                'xid'               => Common::getHashFromId($orderItem->product_id),
-                'item_id'           => '',
-                'name'              => $orderItem->product->name,
-                'image'             => $orderItem->product->image,
-                'image_url'         => $orderItem->product->image_url,
-                'x_tax_id'          => Common::getHashFromId($orderItem->tax_id),
-                'discount_rate'     => $orderItem->discount_rate,
-                'total_discount'    => $orderItem->total_discount,
-                'total_tax'         => $orderItem->total_tax,
-                'unit_price'        => $orderItem->unit_price,
-                'single_unit_price' => $orderItem->single_unit_price,
-                'subtotal'          => $orderItem->subtotal,
-                'quantity'          => $remaining,
-                'sold_quantity'     => $orderItem->quantity,
-                'returned_quantity' => $alreadyReturned,
-                'max_returnable'    => $remaining,
-                'tax_rate'          => $orderItem->tax_rate,
-                'tax_type'          => $orderItem->tax_type,
-                'x_unit_id'         => Common::getHashFromId($orderItem->unit_id),
-                'unit'              => $unit,
-                'stock_quantity'    => $remaining,
-                'unit_short_name'   => $unit && $unit->short_name ? $unit->short_name : '',
-                'product_type'      => $orderItem->product->product_type,
-            ];
-
-            $selectProductIds[] = Common::getHashFromId($orderItem->product_id);
-            $sn++;
-        }
-
-        $user = User::select('id', 'name', 'phone')->find($order->user_id);
-
-        return ApiResponse::make('Data fetched', [
-            'order' => $order,
-            'items' => $items,
-            'ids'   => $selectProductIds,
-            'user'  => $user,
-        ]);
-    }
-
-    // Returns all return documents linked to a given sale/purchase (unified view).
-    public function linkedReturns(...$args)
-    {
-        $xid = last(func_get_args());
-        $originalId = Common::getIdFromHash($xid);
-
-        $returns = Order::where('original_order_id', $originalId)
-            ->orderBy('order_date', 'desc')
-            ->get();
-
-        $returnsTotal = $returns->sum('total');
-
-        return ApiResponse::make('Data fetched', [
-            'returns'       => $returns,
-            'returns_total' => $returnsTotal,
-        ]);
-    }
-
     public function storing(Order $order)
     {
         $request = request();
@@ -242,14 +149,6 @@ trait OrderTraits
         $order->warehouse_id = $this->orderType == 'stock-transfers' ? $request->warehouse_id : $warehouse->id;
         $order->from_warehouse_id = $this->orderType == 'stock-transfers' ? $warehouse->id : null;
         $order->user_id = $this->orderType == 'stock-transfers' ? null : $request->user_id;
-
-        // Link a return document back to the sale/purchase it was created against
-        if ($this->orderType == 'sales-returns' || $this->orderType == 'purchase-returns') {
-            $originalHash = $request->x_original_order_id ?? $request->original_order_id ?? null;
-            if ($originalHash) {
-                $order->original_order_id = Common::getIdFromHash($originalHash);
-            }
-        }
 
         if ($this->orderType == "quotations") {
             $order->order_status = "pending";
@@ -438,7 +337,6 @@ trait OrderTraits
         $warehouseId = $order->warehouse_id;
         $fromWarehouseId = $order->from_warehouse_id;
         $orderUserId = $order->user_id;
-        $originalOrderId = $order->original_order_id;
 
         // If logged in user is not admin
         // then cannot delete order who are
@@ -479,11 +377,6 @@ trait OrderTraits
 
         // Update Customer or Supplier total amount, due amount, paid amount
         Common::updateUserAmount($orderUserId, $order->warehouse_id);
-
-        // If a return document was deleted, re-sync the original document's returned quantities
-        if (($orderType == 'sales-returns' || $orderType == 'purchase-returns') && $originalOrderId) {
-            Common::recalculateReturnedQuantities($originalOrderId);
-        }
 
         // Updating Warehouse History
         Common::updateWarehouseHistory('order', $order);

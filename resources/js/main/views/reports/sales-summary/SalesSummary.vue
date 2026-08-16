@@ -30,12 +30,6 @@
                         <template v-if="column.dataIndex === 'amount'">
                             {{ formatAmountCurrency(record.total) }}
                         </template>
-                        <template v-if="column.dataIndex === 'returns_amount'">
-                            {{ formatAmountCurrency(returnsAmount(record)) }}
-                        </template>
-                        <template v-if="column.dataIndex === 'net_amount'">
-                            {{ formatAmountCurrency(netAmount(record)) }}
-                        </template>
                         <template v-if="column.dataIndex === 'payment_status'">
                             <PaymentStatus :paymentStatus="record.payment_status" />
                         </template>
@@ -53,17 +47,9 @@
                             </a-table-summary-cell>
                             <a-table-summary-cell :col-span="1">
                                 <a-typography-text strong>
-                                    {{ formatAmountCurrency(totals.totalAmount) }}
-                                </a-typography-text>
-                            </a-table-summary-cell>
-                            <a-table-summary-cell :col-span="1">
-                                <a-typography-text strong>
-                                    {{ formatAmountCurrency(totals.returnsTotal) }}
-                                </a-typography-text>
-                            </a-table-summary-cell>
-                            <a-table-summary-cell :col-span="1">
-                                <a-typography-text strong>
-                                    {{ formatAmountCurrency(totals.netTotal) }}
+                                    <a-tooltip>
+                                        {{ formatAmountCurrency(totals.totalAmount) }}
+                                    </a-tooltip>
                                 </a-typography-text>
                             </a-table-summary-cell>
                         </a-table-summary-row>
@@ -114,7 +100,7 @@ export default defineComponent({
 
             datatableVariables.tableUrl.value = {
                 url:
-                    "sales?fields=id,xid,order_date,invoice_number,total,payment_status,user_id,x_user_id,user{id,xid,name,profile_image,profile_image_url,user_type},staff_user_id,x_staff_user_id,staffMember{id,xid,name,profile_image,profile_image_url,user_type},returns{id,xid,total}",
+                    "sales?fields=id,xid,order_date,invoice_number,total,payment_status,user_id,x_user_id,user{id,xid,name,profile_image,profile_image_url,user_type},staff_user_id,x_staff_user_id,staffMember{id,xid,name,profile_image,profile_image_url,user_type}",
                 filters,
                 extraFilters: {
                     dates: propsData.dates,
@@ -132,27 +118,13 @@ export default defineComponent({
             });
         };
 
-        const returnsAmount = (record) => {
-            return (record.returns || []).reduce(
-                (sum, r) => sum + (parseFloat(r.total) || 0),
-                0
-            );
-        };
-        const netAmount = (record) => {
-            return (parseFloat(record.total) || 0) - returnsAmount(record);
-        };
-
         const totals = computed(() => {
             let totalAmount = 0;
-            let returnsTotal = 0;
             datatableVariables.table.data.forEach((tableRowData) => {
-                totalAmount += parseFloat(tableRowData.total) || 0;
-                returnsTotal += returnsAmount(tableRowData);
+                totalAmount += tableRowData.total;
             });
             return {
                 totalAmount,
-                returnsTotal,
-                netTotal: totalAmount - returnsTotal,
             };
         });
 
@@ -171,8 +143,6 @@ export default defineComponent({
             formatDateTime,
             formatAmountCurrency,
             totals,
-            returnsAmount,
-            netAmount,
         };
     },
 });

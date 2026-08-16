@@ -633,24 +633,6 @@
                         </a-menu-item>
                         <a-menu-item
                             v-if="
-                                permsArray.includes('sales_view') ||
-                                permsArray.includes('purchases_view') ||
-                                permsArray.includes('admin')
-                            "
-                            @click="
-                                () => {
-                                    menuSelected();
-                                    $router.push({
-                                        name: 'admin.reports.open_bills.index',
-                                    });
-                                }
-                            "
-                            key="open_bills"
-                        >
-                            Open Bills (Overdue)
-                        </a-menu-item>
-                        <a-menu-item
-                            v-if="
                                 permsArray.includes('products_view') ||
                                 permsArray.includes('admin')
                             "

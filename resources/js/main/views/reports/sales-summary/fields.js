@@ -39,14 +39,6 @@ const fields = () => {
             sorter_field: "orders.total",
         },
         {
-            title: "Returns",
-            dataIndex: "returns_amount",
-        },
-        {
-            title: "Net Sale",
-            dataIndex: "net_amount",
-        },
-        {
             title: t("payments.payment_status"),
             dataIndex: "payment_status",
             dbKey: "payment_status",

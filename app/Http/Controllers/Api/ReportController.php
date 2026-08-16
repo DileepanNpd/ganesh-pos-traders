@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Classes\Common;
 use App\Http\Controllers\ApiBaseController;
 use App\Models\Expense;
 use App\Models\Order;
@@ -11,8 +10,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Examyou\RestAPI\ApiResponse;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 
 
@@ -176,71 +173,6 @@ class ReportController extends ApiBaseController
             'results' => $this->getProfitLossByDates($startDate, $endDate),
             'dates' => $dateResults,
             'dateArray' => $dateArray,
-        ]);
-    }
-
-    // Bills (sales / purchases) that still carry a due amount and have been
-    // open for more than N days (default 35). Bills already tallied against a
-    // linked return are excluded once the original_order_id linkage exists.
-    public function openBills()
-    {
-        $request = request();
-        $warehouse = warehouse();
-
-        $days = $request->has('days') && is_numeric($request->days) && (int) $request->days >= 0
-            ? (int) $request->days
-            : 35;
-
-        $orderTypes = $request->has('type') && in_array($request->type, ['sales', 'purchases'])
-            ? [$request->type]
-            : ['sales', 'purchases'];
-
-        $cutoffDate = Carbon::now()->subDays($days)->format('Y-m-d H:i:s');
-
-        $query = Order::with('user')
-            ->where('orders.warehouse_id', $warehouse->id)
-            ->whereIn('orders.order_type', $orderTypes)
-            ->where('orders.due_amount', '>', 0)
-            ->where('orders.order_date', '<=', $cutoffDate);
-
-        // Optional party (customer/supplier) filter
-        if ($request->has('user_id') && $request->user_id != '') {
-            $query->where('orders.user_id', Common::getIdFromHash($request->user_id));
-        }
-
-        // Skip bills already tallied against a linked return document.
-        // Guarded so the report keeps working until original_order_id is added.
-        if (Schema::hasColumn('orders', 'original_order_id')) {
-            $query->whereNotExists(function ($sub) {
-                $sub->select(DB::raw(1))
-                    ->from('orders as return_docs')
-                    ->whereColumn('return_docs.original_order_id', 'orders.id');
-            });
-        }
-
-        $orders = $query->orderBy('orders.order_date', 'asc')->get();
-
-        $now = Carbon::now();
-        $bills = $orders->map(function ($order) use ($now) {
-            $orderDate = Carbon::parse($order->order_date);
-
-            return [
-                'xid'            => $order->xid,
-                'invoice_number' => $order->invoice_number,
-                'order_type'     => $order->order_type,
-                'order_date'     => $order->order_date,
-                'party'          => $order->user ? $order->user->name : '-',
-                'total'          => $order->total,
-                'paid_amount'    => $order->paid_amount,
-                'due_amount'     => $order->due_amount,
-                'days_open'      => (int) $orderDate->diffInDays($now),
-            ];
-        });
-
-        return ApiResponse::make('Data fetched', [
-            'bills'     => $bills->values(),
-            'days'      => $days,
-            'total_due' => $orders->sum('due_amount'),
         ]);
     }
 

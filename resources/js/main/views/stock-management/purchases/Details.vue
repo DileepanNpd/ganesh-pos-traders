@@ -112,53 +112,6 @@
                 </a-col>
             </a-row>
 
-            <a-row v-if="linkedReturns.length > 0" class="mt-10">
-                <a-col :span="24">
-                    <a-divider style="margin: 8px 0" />
-                    <a-typography-title :level="5">
-                        {{
-                            selectedItem.order_type == "purchases"
-                                ? $t("menu.purchase_returns")
-                                : $t("menu.sales_returns")
-                        }}
-                    </a-typography-title>
-                    <div class="table-responsive">
-                        <a-table
-                            :row-key="(record) => record.xid"
-                            :columns="linkedReturnsColumns"
-                            :data-source="linkedReturns"
-                            :pagination="false"
-                            size="small"
-                        >
-                            <template #bodyCell="{ column, record }">
-                                <template
-                                    v-if="column.dataIndex === 'order_date'"
-                                >
-                                    {{ formatDate(record.order_date) }}
-                                </template>
-                                <template v-if="column.dataIndex === 'total'">
-                                    {{ formatAmountCurrency(record.total) }}
-                                </template>
-                            </template>
-                        </a-table>
-                    </div>
-                    <a-row :gutter="16" class="mt-10">
-                        <a-col :span="12">
-                            <a-typography-text strong>
-                                {{ $t("payments.total_amount") }} ({{
-                                    $t("common.total")
-                                }})
-                            </a-typography-text>
-                        </a-col>
-                        <a-col :span="12">
-                            <a-typography-text strong>
-                                {{ formatAmountCurrency(netTotal) }}
-                            </a-typography-text>
-                        </a-col>
-                    </a-row>
-                </a-col>
-            </a-row>
-
             <a-row>
                 <a-col :span="24">
                     <a-tabs v-model:activeKey="activeKey">
@@ -440,7 +393,7 @@
 </template>
 
 <script>
-import { ref, createVNode, computed, watch, onMounted } from "vue";
+import { ref, createVNode, computed } from "vue";
 import {
     LeftOutlined,
     PlusOutlined,
@@ -563,50 +516,8 @@ export default {
             };
         });
 
-        // Unified view: return documents linked to this sale/purchase.
-        // Fetched lazily and fails silently, so the drawer still works even if
-        // the original_order_id column has not been added yet.
-        const linkedReturns = ref([]);
-        const linkedReturnsTotal = ref(0);
-        const linkedReturnsColumns = [
-            { title: t("stock.invoice_number"), dataIndex: "invoice_number" },
-            { title: t("stock.order_date"), dataIndex: "order_date" },
-            { title: t("payments.total_amount"), dataIndex: "total" },
-        ];
-
-        const netTotal = computed(() => {
-            const total = parseFloat(props.selectedItem.total) || 0;
-            return total - (parseFloat(linkedReturnsTotal.value) || 0);
-        });
-
-        const fetchLinkedReturns = () => {
-            const item = props.selectedItem;
-            linkedReturns.value = [];
-            linkedReturnsTotal.value = 0;
-
-            if (
-                item &&
-                item.xid &&
-                (item.order_type == "sales" || item.order_type == "purchases")
-            ) {
-                axiosAdmin
-                    .get(`${item.order_type}/${item.xid}/linked-returns`)
-                    .then((res) => {
-                        linkedReturns.value = res.data.returns || [];
-                        linkedReturnsTotal.value = res.data.returns_total || 0;
-                    })
-                    .catch(() => {});
-            }
-        };
-
-        onMounted(fetchLinkedReturns);
-        watch(() => props.selectedItem, fetchLinkedReturns);
-
         return {
             onClose,
-            linkedReturns,
-            linkedReturnsColumns,
-            netTotal,
 
             formatDate,
             formatDateTime,

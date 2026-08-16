@@ -185,17 +185,6 @@ const fields = () => {
             }
         ];
 
-        // Show which sale/purchase a return was created against
-        if (
-            pageObject.value.type == "sales-returns" ||
-            pageObject.value.type == "purchase-returns"
-        ) {
-            allColumns.push({
-                title: "Original Invoice",
-                dataIndex: "original_invoice",
-            });
-        }
-
         if (pageObject.value.type == 'stock-transfers') {
             allColumns.push({
                 title: t("stock_transfer.warehouse"),

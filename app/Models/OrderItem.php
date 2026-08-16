@@ -36,7 +36,6 @@ class OrderItem extends BaseModel
         'unit_id' => Hash::class . ':hash',
         'tax_id' => Hash::class . ':hash',
         'quantity' => 'double',
-        'returned_quantity' => 'double',
         'mrp' => 'double',
         'unit_price' => 'double',
         'single_unit_price' => 'double',

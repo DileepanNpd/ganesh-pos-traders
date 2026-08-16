@@ -86,7 +86,7 @@
     <tr class="last-row">
         <td width="10%" rowspan="2" class="cell-text" style="border-right:none;vertical-align:middle;">
             <div><img 
-                src="https://pos.ganeshtraders-tpr.com/images/gt-logo.png"
+                src="https://pos.ganeshtraders-tpr.com/uploads/companies/company_spewpbk9z1wd4ltlvb5n.jpeg"
                 alt="GT Logo"
                 style="max-height:50px; margin-bottom:6px;"/></div>
         </td>
