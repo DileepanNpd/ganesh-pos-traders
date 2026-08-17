@@ -445,13 +445,7 @@
                                             "
                                         >
                                             <RollbackOutlined />
-                                            {{
-                                                $t(
-                                                    record.order_type == "sales"
-                                                        ? "menu.sales_returns"
-                                                        : "menu.purchase_returns"
-                                                )
-                                            }}
+                                            Create Return
                                         </a-menu-item>
 
                                         <a-menu-item key="download_invoice">
