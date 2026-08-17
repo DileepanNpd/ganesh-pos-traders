@@ -62,6 +62,23 @@
                     <PlusOutlined />
                     {{ $t("payments.add") }}
                 </a-button>
+                <a-button
+                    v-if="
+                        (order.order_type == 'sales' ||
+                            order.order_type == 'purchases') &&
+                        (permsArray.includes(
+                            order.order_type == 'sales'
+                                ? 'sales_returns_create'
+                                : 'purchase_returns_create'
+                        ) ||
+                            permsArray.includes('admin'))
+                    "
+                    type="primary"
+                    @click="createReturn"
+                >
+                    <RollbackOutlined />
+                    Create Return
+                </a-button>
                 <a-typography-link
                     :href="`${invoiceBaseUrl}/${order.unique_id}`"
                     target="_blank"
@@ -85,8 +102,13 @@
 </template>
 <script>
 import { defineComponent, ref, watch, computed } from "vue";
-import { PlusOutlined, DownloadOutlined } from "@ant-design/icons-vue";
+import {
+    PlusOutlined,
+    DownloadOutlined,
+    RollbackOutlined,
+} from "@ant-design/icons-vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import common from "../../../common/composable/common";
 import PaymentStatus from "../../../common/components/order/PaymentStatus.vue";
 import Details from "../../views/stock-management/purchases/Details.vue";
@@ -99,6 +121,7 @@ export default defineComponent({
         Details,
         PlusOutlined,
         DownloadOutlined,
+        RollbackOutlined,
     },
     setup(props, { emit }) {
         const {
@@ -108,9 +131,23 @@ export default defineComponent({
             selectedWarehouse,
         } = common();
         const { t } = useI18n();
+        const router = useRouter();
         const detailsRef = ref(null);
 
         const onClose = () => {
+            emit("close");
+        };
+
+        // Start a return document pre-filled from this sale/purchase
+        const createReturn = () => {
+            const routeName =
+                props.order.order_type == "purchases"
+                    ? "admin.stock.purchase-returns.create"
+                    : "admin.stock.sales-returns.create";
+            router.push({
+                name: routeName,
+                query: { original_order_id: props.order.xid },
+            });
             emit("close");
         };
 
@@ -131,6 +168,7 @@ export default defineComponent({
             permsArray,
             selectedWarehouse,
             onClose,
+            createReturn,
             restSelectedItem,
             paymentSuccess,
             drawerWidth: window.innerWidth <= 991 ? "90%" : "60%",
