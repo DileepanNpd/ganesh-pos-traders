@@ -29,6 +29,13 @@
                             <a-typography-link @click="viewItem(record)">
                                 {{ record.invoice_number }}
                             </a-typography-link>
+                            <a-tag
+                                v-if="record.settled"
+                                color="green"
+                                style="margin-left: 4px"
+                            >
+                                Settled
+                            </a-tag>
                         </template>
                         <template
                             v-if="column.dataIndex === 'original_invoice'"
@@ -446,6 +453,26 @@
                                         >
                                             <RollbackOutlined />
                                             Create Return
+                                        </a-menu-item>
+                                        <a-menu-item
+                                            key="mark_settled"
+                                            v-if="
+                                                (record.order_type == 'sales' ||
+                                                    record.order_type ==
+                                                        'purchases') &&
+                                                (permsArray.includes(
+                                                    `${pageObject.permission}_edit`
+                                                ) ||
+                                                    permsArray.includes('admin'))
+                                            "
+                                            @click="toggleSettled(record)"
+                                        >
+                                            <CheckOutlined />
+                                            {{
+                                                record.settled
+                                                    ? "Mark as Unsettled"
+                                                    : "Mark as Settled"
+                                            }}
                                         </a-menu-item>
 
                                         <a-menu-item key="download_invoice">
@@ -886,7 +913,7 @@ export default {
                     : "";
 
             datatableVariables.tableUrl.value = {
-                url: `${props.orderType}?fields=id,total_items,total_quantity,xid,unique_id,warehouse_id,x_warehouse_id,warehouse{id,xid,name},from_warehouse_id,x_from_warehouse_id,fromWarehouse{id,xid,name},invoice_number,order_type,order_date,tax_amount,discount,shipping,subtotal,paid_amount,due_amount,order_status,payment_status,total,tax_rate,staff_user_id,x_staff_user_id,staffMember{id,xid,name,profile_image,profile_image_url,shipping_address,tax_number,email,user_type},user_id,x_user_id,user{id,xid,user_type,name,email,address,tax_number,profile_image,profile_image_url,phone},user:details{opening_balance,opening_balance_type,credit_period,credit_limit,due_amount,warehouse_id,x_warehouse_id},orderPayments{id,xid,amount,payment_id,x_payment_id},orderPayments:payment{id,xid,payment_number,amount,payment_mode_id,x_payment_mode_id,date,notes},orderPayments:payment:paymentMode{id,xid,name},items{id,xid,product_id,x_product_id,unit_id,x_unit_id,single_unit_price,unit_price,quantity,tax_rate,total_tax,tax_type,total_discount,subtotal,mrp},items:unit{id,xid,name,short_name},items:product{id,xid,name,image,image_url},items:product:unit{id,xid,name,short_name},items:product:details{id,xid,warehouse_id,x_warehouse_id,product_id,x_product_id,current_stock},items:orderItemTaxes{id,xid,order_item_id,order_item_id,tax_name,tax_amount},cancelled,terms_condition,shippingAddress{id,xid,order_id,name,email,phone,address,address,city,state,country,zipcode},items:product:customFields{id,xid,field_name,field_value,warehouse_id}${returnInclude}`,
+                url: `${props.orderType}?fields=id,total_items,total_quantity,xid,unique_id,warehouse_id,x_warehouse_id,warehouse{id,xid,name},from_warehouse_id,x_from_warehouse_id,fromWarehouse{id,xid,name},invoice_number,order_type,order_date,tax_amount,discount,shipping,subtotal,paid_amount,due_amount,order_status,payment_status,settled,total,tax_rate,staff_user_id,x_staff_user_id,staffMember{id,xid,name,profile_image,profile_image_url,shipping_address,tax_number,email,user_type},user_id,x_user_id,user{id,xid,user_type,name,email,address,tax_number,profile_image,profile_image_url,phone},user:details{opening_balance,opening_balance_type,credit_period,credit_limit,due_amount,warehouse_id,x_warehouse_id},orderPayments{id,xid,amount,payment_id,x_payment_id},orderPayments:payment{id,xid,payment_number,amount,payment_mode_id,x_payment_mode_id,date,notes},orderPayments:payment:paymentMode{id,xid,name},items{id,xid,product_id,x_product_id,unit_id,x_unit_id,single_unit_price,unit_price,quantity,tax_rate,total_tax,tax_type,total_discount,subtotal,mrp},items:unit{id,xid,name,short_name},items:product{id,xid,name,image,image_url},items:product:unit{id,xid,name,short_name},items:product:details{id,xid,warehouse_id,x_warehouse_id,product_id,x_product_id,current_stock},items:orderItemTaxes{id,xid,order_item_id,order_item_id,tax_name,tax_amount},cancelled,terms_condition,shippingAddress{id,xid,order_id,name,email,phone,address,address,city,state,country,zipcode},items:product:customFields{id,xid,field_name,field_value,warehouse_id}${returnInclude}`,
                 filterString,
                 filters: {
                     user_id: tableFilter.user_id
@@ -917,6 +944,24 @@ export default {
             datatableVariables.fetch({
                 page: datatableVariables.table.pagination.currentPage,
             });
+        };
+
+        const toggleSettled = (record) => {
+            const newSettled = record.settled ? 0 : 1;
+            axiosAdmin
+                .post(`${record.order_type}/${record.xid}/mark-settled`, {
+                    settled: newSettled,
+                })
+                .then(() => {
+                    notification.success({
+                        message: t("common.success"),
+                        description: newSettled
+                            ? "Bill marked as settled"
+                            : "Bill marked as unsettled",
+                        placement: "bottomRight",
+                    });
+                    setUrlData();
+                });
         };
 
         const showDeleteConfirm = (id) => {
@@ -1280,6 +1325,7 @@ export default {
 
             showDeleteConfirm,
             showSelectedDeleteConfirm,
+            toggleSettled,
 
             detailsDrawerVisible,
             onDetailDrawerClose,

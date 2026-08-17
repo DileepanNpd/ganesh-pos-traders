@@ -129,6 +129,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
         ApiRoute::get('sales/{xid}/linked-returns', ['as' => 'api.sales.linked-returns', 'uses' => 'SalesController@linkedReturns']);
         ApiRoute::get('purchases/{xid}/linked-returns', ['as' => 'api.purchases.linked-returns', 'uses' => 'PurchaseController@linkedReturns']);
 
+        // Manually mark a bill settled / unsettled (excludes it from pending reports)
+        ApiRoute::post('sales/{xid}/mark-settled', ['as' => 'api.sales.mark-settled', 'uses' => 'SalesController@markSettled']);
+        ApiRoute::post('purchases/{xid}/mark-settled', ['as' => 'api.purchases.mark-settled', 'uses' => 'PurchaseController@markSettled']);
+
         ApiRoute::resource('purchases', 'PurchaseController', $options);
         ApiRoute::resource('purchase-returns', 'PurchaseReturnsController', $options);
         ApiRoute::resource('stock-transfers', 'StockTransferController', $options);
