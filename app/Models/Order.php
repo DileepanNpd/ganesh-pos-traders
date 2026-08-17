@@ -40,6 +40,7 @@ class Order extends BaseModel
         'tax_id' => Hash::class . ':hash',
         'cancelled_by' => Hash::class . ':hash',
         'cancelled' => 'integer',
+        'settled' => 'integer',
         'is_deletable' => 'integer',
         'tax_rate' => 'double',
         'tax_amount' => 'double',

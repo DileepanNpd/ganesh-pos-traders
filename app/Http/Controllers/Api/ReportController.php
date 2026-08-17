@@ -208,15 +208,8 @@ class ReportController extends ApiBaseController
             $query->where('orders.user_id', Common::getIdFromHash($request->user_id));
         }
 
-        // Skip bills already tallied against a linked return document.
-        // Guarded so the report keeps working until original_order_id is added.
-        if (Schema::hasColumn('orders', 'original_order_id')) {
-            $query->whereNotExists(function ($sub) {
-                $sub->select(DB::raw(1))
-                    ->from('orders as return_docs')
-                    ->whereColumn('return_docs.original_order_id', 'orders.id');
-            });
-        }
+        // Skip bills manually marked settled or already tallied against a return.
+        Common::excludePendingSettledOrReturned($query);
 
         $orders = $query->orderBy('orders.order_date', 'asc')->get();
 

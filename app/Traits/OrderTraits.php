@@ -210,6 +210,23 @@ trait OrderTraits
         ]);
     }
 
+    // Manually mark a bill as settled / unsettled. Purely a reporting flag —
+    // does not touch payments, due amount, or any operational logic.
+    public function markSettled(...$args)
+    {
+        $xid = last(func_get_args());
+        $id = Common::getIdFromHash($xid);
+
+        $order = Order::findOrFail($id);
+        $order->settled = request()->boolean('settled') ? 1 : 0;
+        $order->save();
+
+        return ApiResponse::make('Resource updated successfully', [
+            'xid'     => $order->xid,
+            'settled' => $order->settled,
+        ]);
+    }
+
     // Returns all return documents linked to a given sale/purchase (unified view).
     public function linkedReturns(...$args)
     {

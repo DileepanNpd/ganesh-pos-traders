@@ -975,6 +975,9 @@ class AuthController extends ApiBaseController
         // Only pending unless include_paid
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
+
+            // Hide settled or return-adjusted bills from the pending list
+            Common::excludePendingSettledOrReturned($query);
         }
     
         $rows = $query->select(
@@ -1137,6 +1140,9 @@ class AuthController extends ApiBaseController
         // Only pending unless include_paid
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
+
+            // Hide settled or return-adjusted bills from the pending list
+            Common::excludePendingSettledOrReturned($query);
         }
     
         $query->select(
@@ -1300,6 +1306,9 @@ class AuthController extends ApiBaseController
         // Only pending unless include_paid
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
+
+            // Hide settled or return-adjusted bills from the pending list
+            Common::excludePendingSettledOrReturned($query);
         }
     
         $rows = $query->get();
@@ -1354,6 +1363,9 @@ class AuthController extends ApiBaseController
         // Only pending unless include_paid
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
+
+            // Hide settled or return-adjusted bills from the pending list
+            Common::excludePendingSettledOrReturned($query);
         }
         
         $rows = $query->get();

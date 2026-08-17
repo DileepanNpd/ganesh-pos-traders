@@ -32,6 +32,7 @@ use Carbon\Carbon;
 use Examyou\RestAPI\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Nwidart\Modules\Facades\Module;
@@ -704,6 +705,28 @@ class Common
         }
 
         return $order;
+    }
+
+    // Removes bills from a "pending" query that should no longer be treated as
+    // outstanding: (1) manually marked as settled, and (2) already tallied against
+    // a linked return. Both are guarded so the query still works before the
+    // `settled` / `original_order_id` columns are added. Does NOT touch payment
+    // or due-amount logic. The query's base table must be `orders`.
+    public static function excludePendingSettledOrReturned($query)
+    {
+        if (Schema::hasColumn('orders', 'settled')) {
+            $query->where('orders.settled', 0);
+        }
+
+        if (Schema::hasColumn('orders', 'original_order_id')) {
+            $query->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('orders as return_docs')
+                    ->whereColumn('return_docs.original_order_id', 'orders.id');
+            });
+        }
+
+        return $query;
     }
 
     // Sum of quantities already returned against an original order, keyed by product_id.
