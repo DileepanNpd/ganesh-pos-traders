@@ -126,6 +126,15 @@ to
     $returns = $returns ?? collect();
     $totalReturns = $totalReturns ?? 0;
     $netPending = $netPending ?? ($totalDue - $totalReturns);
+    $comp = ($company && $company->name) ? $company->name : 'We';
+    if ($netPending < -0.001) {
+        $netLabel = 'NET REFUND (' . $comp . ' to pay customer)';
+    } elseif ($netPending > 0.001) {
+        $netLabel = 'NET PENDING (customer to pay ' . $comp . ')';
+    } else {
+        $netLabel = 'NET (fully settled)';
+    }
+    $netAmount = abs($netPending);
 @endphp
 
 @if($rows->count() || $returns->count())
@@ -180,8 +189,8 @@ to
 @endif
 
 <tr class="net-row">
-    <td colspan="5">NET PENDING</td>
-    <td>{{ number_format($netPending,2) }}</td>
+    <td colspan="5">{{ $netLabel }}</td>
+    <td>{{ number_format($netAmount,2) }}</td>
 </tr>
 </tbody>
 </table>
