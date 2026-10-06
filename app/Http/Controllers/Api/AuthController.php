@@ -995,7 +995,6 @@ class AuthController extends ApiBaseController
             ->get();
 
         $totalDue = $rows->sum('due_amount');
-        $shownIds = $rows->pluck('id')->filter()->values()->all();
         $invoiceNoById = $rows->pluck('invoice_number', 'id');
 
         // Credit notes (sales returns) for the same customer/period
@@ -1012,20 +1011,24 @@ class AuthController extends ApiBaseController
             ->orderBy('order_date')
             ->get();
 
-        // Show only credit notes that tally against a pending invoice, and tag
-        // each with the original invoice number. Returns tied to a settled/paid
-        // (or unlinked) bill are left out so NET PENDING equals the finalized
-        // amount that matches the party's ledger balance.
-        $returns_applied = collect();
-        foreach ($returns as $cn) {
-            $linkedId = $hasLink ? $cn->original_order_id : null;
-            if ($linkedId && in_array($linkedId, $shownIds)) {
-                $cn->original_invoice = $invoiceNoById[$linkedId] ?? null;
-                $returns_applied->push($cn);
-            }
+        // List every credit note for the period and deduct all of them from NET.
+        // Tag each with its original invoice number when linked (even if that
+        // bill is settled/paid and not shown above); unmapped returns have none.
+        $linkedIds = $hasLink
+            ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
+            : [];
+        $origInvoiceNos = $invoiceNoById->all();
+        if (!empty($linkedIds)) {
+            $origInvoiceNos += Order::whereIn('id', $linkedIds)
+                ->pluck('invoice_number', 'id')->all();
         }
 
-        $totalReturns = $returns_applied->sum('total');
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
+        }
+
+        $totalReturns = $returns->sum('total');
         $netPending   = $totalDue - $totalReturns;
 
         $company = Company::find($customer->company_id);
@@ -1035,7 +1038,7 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'customer'  => $customer,
             'rows'      => $rows,
-            'returns'   => $returns_applied,
+            'returns'   => $returns,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
@@ -1198,7 +1201,6 @@ class AuthController extends ApiBaseController
         $rows = $query->get();
 
         $totalDue = $rows->sum('due_amount');
-        $shownIds = $rows->pluck('id')->filter()->values()->all();
         $invoiceNoById = $rows->pluck('invoice_number', 'id');
 
         // Credit notes (purchase returns) for the same supplier/period
@@ -1215,20 +1217,24 @@ class AuthController extends ApiBaseController
             ->orderBy('order_date')
             ->get();
 
-        // Show only credit notes that tally against a pending bill, and tag each
-        // with the original bill number. Returns tied to a settled/paid (or
-        // unlinked) bill are left out so NET PENDING equals the finalized amount
-        // that matches the supplier's ledger balance.
-        $returns_applied = collect();
-        foreach ($returns as $cn) {
-            $linkedId = $hasLink ? $cn->original_order_id : null;
-            if ($linkedId && in_array($linkedId, $shownIds)) {
-                $cn->original_invoice = $invoiceNoById[$linkedId] ?? null;
-                $returns_applied->push($cn);
-            }
+        // List every credit note for the period and deduct all of them from NET.
+        // Tag each with its original bill number when linked (even if that bill
+        // is settled/paid and not shown above); unmapped returns have none.
+        $linkedIds = $hasLink
+            ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
+            : [];
+        $origInvoiceNos = $invoiceNoById->all();
+        if (!empty($linkedIds)) {
+            $origInvoiceNos += Order::whereIn('id', $linkedIds)
+                ->pluck('invoice_number', 'id')->all();
         }
 
-        $totalReturns = $returns_applied->sum('total');
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
+        }
+
+        $totalReturns = $returns->sum('total');
         $netPending   = $totalDue - $totalReturns;
 
         $company = Company::find($supplier->company_id);
@@ -1238,7 +1244,7 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'supplier'  => $supplier,
             'rows'      => $rows,
-            'returns'   => $returns_applied,
+            'returns'   => $returns,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
