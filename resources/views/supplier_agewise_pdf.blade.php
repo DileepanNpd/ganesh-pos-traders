@@ -61,6 +61,17 @@ body {
     font-weight: bold;
 }
 
+.section-row td {
+    background: #f1f3f5;
+    font-weight: bold;
+    text-align: left;
+}
+
+.net-row td {
+    background: #c7d8c7;
+    font-weight: bold;
+}
+
 .no-data {
     margin-top: 40px;
     text-align: center;
@@ -103,7 +114,13 @@ to
 <strong>Printed:</strong> {{ $today }}
 </p>
 
-@if($rows->count())
+@php
+    $returns = $returns ?? collect();
+    $totalReturns = $totalReturns ?? 0;
+    $netPending = $netPending ?? ($totalDue - $totalReturns);
+@endphp
+
+@if($rows->count() || $returns->count())
 
 <table class="table">
 <thead>
@@ -130,9 +147,33 @@ to
 @endforeach
 
 <tr class="total-row">
-    <td colspan="5">TOTAL PENDING</td>
+    <td colspan="5">TOTAL PENDING (INVOICES)</td>
     <td>{{ number_format($totalDue,2) }}</td>
 </tr>
+
+@if($returns->count())
+<tr class="section-row">
+    <td colspan="6">Credit Notes (Returns)</td>
+</tr>
+@foreach($returns as $cn)
+<tr>
+    <td>{{ $cn->invoice_number }}</td>
+    <td>{{ \Carbon\Carbon::parse($cn->order_date)->format('d-m-Y') }}</td>
+    <td>&mdash;</td>
+    <td>-{{ number_format($cn->total,2) }}</td>
+    <td>&mdash;</td>
+    <td>-{{ number_format($cn->total,2) }}</td>
+</tr>
+@endforeach
+<tr class="total-row">
+    <td colspan="5">TOTAL CREDIT NOTES</td>
+    <td>-{{ number_format($totalReturns,2) }}</td>
+</tr>
+<tr class="net-row">
+    <td colspan="5">NET PENDING</td>
+    <td>{{ number_format($netPending,2) }}</td>
+</tr>
+@endif
 </tbody>
 </table>
 

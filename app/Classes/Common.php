@@ -712,13 +712,16 @@ class Common
     // a linked return. Both are guarded so the query still works before the
     // `settled` / `original_order_id` columns are added. Does NOT touch payment
     // or due-amount logic. The query's base table must be `orders`.
-    public static function excludePendingSettledOrReturned($query)
+    public static function excludePendingSettledOrReturned($query, $excludeReturnLinked = true)
     {
         if (Schema::hasColumn('orders', 'settled')) {
             $query->where('orders.settled', 0);
         }
 
-        if (Schema::hasColumn('orders', 'original_order_id')) {
+        // When $excludeReturnLinked is false, bills that have a linked return stay
+        // in the result (e.g. the bill-wise report shows the credit note explicitly
+        // and nets it). Manually-settled bills are still excluded above.
+        if ($excludeReturnLinked && Schema::hasColumn('orders', 'original_order_id')) {
             $query->whereNotExists(function ($sub) {
                 $sub->select(DB::raw(1))
                     ->from('orders as return_docs')

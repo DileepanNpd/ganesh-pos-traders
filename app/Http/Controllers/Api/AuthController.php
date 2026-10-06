@@ -976,10 +976,11 @@ class AuthController extends ApiBaseController
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
 
-            // Hide settled or return-adjusted bills from the pending list
-            Common::excludePendingSettledOrReturned($query);
+            // Hide only manually-settled bills; keep return-adjusted bills visible
+            // because their credit notes are listed (and netted) below.
+            Common::excludePendingSettledOrReturned($query, false);
         }
-    
+
         $rows = $query->select(
                 'invoice_number',
                 'order_date',
@@ -990,23 +991,37 @@ class AuthController extends ApiBaseController
             )
             ->orderBy('order_date')
             ->get();
-    
+
         $totalDue = $rows->sum('due_amount');
-    
+
+        // Credit notes (sales returns) for the same customer/period
+        $returns = Order::where('user_id', $userId)
+            ->where('order_type', 'sales-returns')
+            ->whereBetween(DB::raw('DATE(order_date)'), [$from, $to])
+            ->select('invoice_number', 'order_date', 'total')
+            ->orderBy('order_date')
+            ->get();
+
+        $totalReturns = $returns->sum('total');
+        $netPending   = $totalDue - $totalReturns;
+
         $company = Company::find($customer->company_id);
-    
+
         $pdfData = [
             'company'   => $company,
             'warehouse' => $warehouse,
             'customer'  => $customer,
             'rows'      => $rows,
+            'returns'   => $returns,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
+            'totalReturns' => $totalReturns,
+            'netPending'   => $netPending,
             'includePaid' => $includePaid,
         ];
-    
+
         $pdf = PDF::loadView('customer_agewise_pdf', $pdfData)
             ->setPaper('a5', 'landscape');
     
@@ -1141,10 +1156,11 @@ class AuthController extends ApiBaseController
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
 
-            // Hide settled or return-adjusted bills from the pending list
-            Common::excludePendingSettledOrReturned($query);
+            // Hide only manually-settled bills; keep return-adjusted bills visible
+            // because their credit notes are listed (and netted) below.
+            Common::excludePendingSettledOrReturned($query, false);
         }
-    
+
         $query->select(
                 'invoice_number',
                 'order_date',
@@ -1154,25 +1170,39 @@ class AuthController extends ApiBaseController
                 DB::raw('DATEDIFF(CURDATE(), order_date) as due_days')
             )
             ->orderBy('order_date');
-        
+
         $rows = $query->get();
 
         $totalDue = $rows->sum('due_amount');
-    
+
+        // Credit notes (purchase returns) for the same supplier/period
+        $returns = Order::where('user_id', $userId)
+            ->where('order_type', 'purchase-returns')
+            ->whereBetween(DB::raw('DATE(order_date)'), [$from, $to])
+            ->select('invoice_number', 'order_date', 'total')
+            ->orderBy('order_date')
+            ->get();
+
+        $totalReturns = $returns->sum('total');
+        $netPending   = $totalDue - $totalReturns;
+
         $company = Company::find($supplier->company_id);
-    
+
         $pdfData = [
             'company'   => $company,
             'warehouse' => $warehouse,
             'supplier'  => $supplier,
             'rows'      => $rows,
+            'returns'   => $returns,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
+            'totalReturns' => $totalReturns,
+            'netPending'   => $netPending,
             'includePaid' => $includePaid,
         ];
-    
+
         $pdf = PDF::loadView('supplier_agewise_pdf', $pdfData)
             ->setPaper('a5', 'landscape');
     
