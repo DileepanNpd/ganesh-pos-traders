@@ -363,10 +363,13 @@
                 </a-form-item>
         
                 <!-- Presets -->
-                <a-space>
+                <a-space wrap>
                     <a-button size="small" @click="setPreset('this_month')">This Month</a-button>
                     <a-button size="small" @click="setPreset('last_month')">Last Month</a-button>
                     <a-button size="small" @click="setPreset('this_year')">This Year</a-button>
+                    <a-button size="small" @click="setPreset('this_financial_year')">This Financial Year</a-button>
+                    <a-button size="small" @click="setPreset('last_financial_year')">Last Financial Year</a-button>
+                    <a-button size="small" @click="setPreset('all_time')">All Time</a-button>
                 </a-space>
         
                 <!-- Date Range -->
@@ -515,6 +518,26 @@ export default {
             }
             if (type === "this_year") {
                 pdfDateRange.value = [dayjs().startOf("year"), dayjs().endOf("year")];
+            }
+            // Indian financial year: 1 April – 31 March. dayjs month() is 0-indexed (April = 3).
+            if (type === "this_financial_year") {
+                const now = dayjs();
+                const startYear = now.month() >= 3 ? now.year() : now.year() - 1;
+                pdfDateRange.value = [
+                    dayjs(`${startYear}-04-01`).startOf("day"),
+                    dayjs(`${startYear + 1}-03-31`).endOf("day"),
+                ];
+            }
+            if (type === "last_financial_year") {
+                const now = dayjs();
+                const startYear = (now.month() >= 3 ? now.year() : now.year() - 1) - 1;
+                pdfDateRange.value = [
+                    dayjs(`${startYear}-04-01`).startOf("day"),
+                    dayjs(`${startYear + 1}-03-31`).endOf("day"),
+                ];
+            }
+            if (type === "all_time") {
+                pdfDateRange.value = [dayjs("2000-01-01").startOf("day"), dayjs("2100-12-31").endOf("day")];
             }
         };
 
