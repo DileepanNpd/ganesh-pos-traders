@@ -72,6 +72,14 @@ body {
     font-weight: bold;
 }
 
+.note-row td {
+    background: #fff;
+    font-style: italic;
+    font-size: 9px;
+    text-align: left;
+    color: #555;
+}
+
 .no-data {
     margin-top: 40px;
     text-align: center;
@@ -116,11 +124,13 @@ to
 
 @php
     $returns = $returns ?? collect();
+    $unapplied = $unapplied ?? collect();
     $totalReturns = $totalReturns ?? 0;
+    $totalUnapplied = $totalUnapplied ?? 0;
     $netPending = $netPending ?? ($totalDue - $totalReturns);
 @endphp
 
-@if($rows->count() || $returns->count())
+@if($rows->count() || $returns->count() || $unapplied->count())
 
 <table class="table">
 <thead>
@@ -153,7 +163,7 @@ to
 
 @if($returns->count())
 <tr class="section-row">
-    <td colspan="6">Credit Notes (Returns)</td>
+    <td colspan="6">Credit Notes (Applied)</td>
 </tr>
 @foreach($returns as $cn)
 <tr>
@@ -166,12 +176,38 @@ to
 </tr>
 @endforeach
 <tr class="total-row">
-    <td colspan="5">TOTAL CREDIT NOTES</td>
+    <td colspan="5">TOTAL CREDIT NOTES (APPLIED)</td>
     <td>-{{ number_format($totalReturns,2) }}</td>
 </tr>
+@endif
+
+@if($returns->count() || $unapplied->count())
 <tr class="net-row">
     <td colspan="5">NET PENDING</td>
     <td>{{ number_format($netPending,2) }}</td>
+</tr>
+@endif
+
+@if($unapplied->count())
+<tr class="section-row">
+    <td colspan="6">Unapplied Credit Notes (not deducted above)</td>
+</tr>
+@foreach($unapplied as $cn)
+<tr>
+    <td>{{ $cn->invoice_number }}</td>
+    <td>{{ \Carbon\Carbon::parse($cn->order_date)->format('d-m-Y') }}</td>
+    <td>&mdash;</td>
+    <td>-{{ number_format($cn->total,2) }}</td>
+    <td>&mdash;</td>
+    <td>-{{ number_format($cn->total,2) }}</td>
+</tr>
+@endforeach
+<tr class="total-row">
+    <td colspan="5">TOTAL UNAPPLIED CREDIT NOTES</td>
+    <td>-{{ number_format($totalUnapplied,2) }}</td>
+</tr>
+<tr class="note-row">
+    <td colspan="6">Credit notes whose original invoice is settled, fully paid, or not linked &mdash; shown for reference, not subtracted from NET PENDING.</td>
 </tr>
 @endif
 </tbody>

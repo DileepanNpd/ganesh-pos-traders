@@ -37,6 +37,7 @@ use Examyou\RestAPI\ApiResponse;
 use Examyou\RestAPI\Exceptions\ApiException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Notification;
 use Milon\Barcode\DNS1D;
 use Illuminate\Support\Str;
@@ -982,6 +983,7 @@ class AuthController extends ApiBaseController
         }
 
         $rows = $query->select(
+                'id',
                 'invoice_number',
                 'order_date',
                 'total',
@@ -993,17 +995,39 @@ class AuthController extends ApiBaseController
             ->get();
 
         $totalDue = $rows->sum('due_amount');
+        $shownIds = $rows->pluck('id')->filter()->values()->all();
 
         // Credit notes (sales returns) for the same customer/period
+        $hasLink = Schema::hasColumn('orders', 'original_order_id');
+        $returnCols = ['invoice_number', 'order_date', 'total'];
+        if ($hasLink) {
+            $returnCols[] = 'original_order_id';
+        }
+
         $returns = Order::where('user_id', $userId)
             ->where('order_type', 'sales-returns')
             ->whereBetween(DB::raw('DATE(order_date)'), [$from, $to])
-            ->select('invoice_number', 'order_date', 'total')
+            ->select($returnCols)
             ->orderBy('order_date')
             ->get();
 
-        $totalReturns = $returns->sum('total');
-        $netPending   = $totalDue - $totalReturns;
+        // Only credit notes whose original invoice is in the pending list are
+        // netted; the rest are listed separately and NOT deducted (keeps NET
+        // PENDING consistent with the customer's ledger balance).
+        $returns_applied   = collect();
+        $returns_unapplied = collect();
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            if ($linkedId && in_array($linkedId, $shownIds)) {
+                $returns_applied->push($cn);
+            } else {
+                $returns_unapplied->push($cn);
+            }
+        }
+
+        $totalReturns   = $returns_applied->sum('total');
+        $totalUnapplied = $returns_unapplied->sum('total');
+        $netPending     = $totalDue - $totalReturns;
 
         $company = Company::find($customer->company_id);
 
@@ -1012,13 +1036,15 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'customer'  => $customer,
             'rows'      => $rows,
-            'returns'   => $returns,
+            'returns'   => $returns_applied,
+            'unapplied' => $returns_unapplied,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
-            'totalReturns' => $totalReturns,
-            'netPending'   => $netPending,
+            'totalReturns'   => $totalReturns,
+            'totalUnapplied' => $totalUnapplied,
+            'netPending'     => $netPending,
             'includePaid' => $includePaid,
         ];
 
@@ -1162,6 +1188,7 @@ class AuthController extends ApiBaseController
         }
 
         $query->select(
+                'id',
                 'invoice_number',
                 'order_date',
                 'total',
@@ -1174,17 +1201,39 @@ class AuthController extends ApiBaseController
         $rows = $query->get();
 
         $totalDue = $rows->sum('due_amount');
+        $shownIds = $rows->pluck('id')->filter()->values()->all();
 
         // Credit notes (purchase returns) for the same supplier/period
+        $hasLink = Schema::hasColumn('orders', 'original_order_id');
+        $returnCols = ['invoice_number', 'order_date', 'total'];
+        if ($hasLink) {
+            $returnCols[] = 'original_order_id';
+        }
+
         $returns = Order::where('user_id', $userId)
             ->where('order_type', 'purchase-returns')
             ->whereBetween(DB::raw('DATE(order_date)'), [$from, $to])
-            ->select('invoice_number', 'order_date', 'total')
+            ->select($returnCols)
             ->orderBy('order_date')
             ->get();
 
-        $totalReturns = $returns->sum('total');
-        $netPending   = $totalDue - $totalReturns;
+        // Only credit notes whose original bill is in the pending list are
+        // netted; the rest are listed separately and NOT deducted (keeps NET
+        // PENDING consistent with the supplier's ledger balance).
+        $returns_applied   = collect();
+        $returns_unapplied = collect();
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            if ($linkedId && in_array($linkedId, $shownIds)) {
+                $returns_applied->push($cn);
+            } else {
+                $returns_unapplied->push($cn);
+            }
+        }
+
+        $totalReturns   = $returns_applied->sum('total');
+        $totalUnapplied = $returns_unapplied->sum('total');
+        $netPending     = $totalDue - $totalReturns;
 
         $company = Company::find($supplier->company_id);
 
@@ -1193,13 +1242,15 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'supplier'  => $supplier,
             'rows'      => $rows,
-            'returns'   => $returns,
+            'returns'   => $returns_applied,
+            'unapplied' => $returns_unapplied,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
-            'totalReturns' => $totalReturns,
-            'netPending'   => $netPending,
+            'totalReturns'   => $totalReturns,
+            'totalUnapplied' => $totalUnapplied,
+            'netPending'     => $netPending,
             'includePaid' => $includePaid,
         ];
 
