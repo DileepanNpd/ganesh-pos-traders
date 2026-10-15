@@ -995,7 +995,9 @@ class AuthController extends ApiBaseController
             ->get();
 
         $totalDue = $rows->sum('due_amount');
-        $invoiceNoById = $rows->pluck('invoice_number', 'id');
+        $totalPaid = $rows->sum('paid_amount');
+        $totalSales = $rows->sum('total');
+        $shownIds = $rows->pluck('id')->all();
 
         // Credit notes (sales returns) for the same customer/period
         $hasLink = Schema::hasColumn('orders', 'original_order_id');
@@ -1011,25 +1013,43 @@ class AuthController extends ApiBaseController
             ->orderBy('order_date')
             ->get();
 
-        // List every credit note for the period and deduct all of them from NET.
-        // Tag each with its original invoice number when linked (even if that
-        // bill is settled/paid and not shown above); unmapped returns have none.
+        $totalReturns = $returns->sum('total');
+
+        // Pair each sale row with the credit note(s) created against it, so the
+        // invoice and its return(s) show on the same line with a per-row pending.
+        $returnsByOriginal = $hasLink
+            ? $returns->whereNotNull('original_order_id')->groupBy('original_order_id')
+            : collect();
+
+        foreach ($rows as $row) {
+            $linked = $returnsByOriginal->get($row->id, collect());
+            $row->credit_total = $linked->sum('total');
+            $row->credit_notes = $linked->pluck('invoice_number')->implode(', ');
+            $row->net_pending  = $row->due_amount - $row->credit_total;
+        }
+        $mappedCredit = $rows->sum('credit_total');
+
+        // Returns not linked to a shown invoice (unlinked, or tied to a
+        // settled/paid/out-of-range bill) are listed separately but still netted.
         $linkedIds = $hasLink
             ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
             : [];
-        $origInvoiceNos = $invoiceNoById->all();
+        $origInvoiceNos = [];
         if (!empty($linkedIds)) {
-            $origInvoiceNos += Order::whereIn('id', $linkedIds)
+            $origInvoiceNos = Order::whereIn('id', $linkedIds)
                 ->pluck('invoice_number', 'id')->all();
         }
-
-        foreach ($returns as $cn) {
+        $unlinked = $returns->filter(function ($cn) use ($hasLink, $shownIds) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            return !($linkedId && in_array($linkedId, $shownIds));
+        })->values();
+        foreach ($unlinked as $cn) {
             $linkedId = $hasLink ? $cn->original_order_id : null;
             $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
         }
+        $totalUnlinked = $unlinked->sum('total');
 
-        $totalReturns = $returns->sum('total');
-        $netPending   = $totalDue - $totalReturns;
+        $netPending = $totalDue - $totalReturns;
 
         $company = Company::find($customer->company_id);
 
@@ -1038,12 +1058,16 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'customer'  => $customer,
             'rows'      => $rows,
-            'returns'   => $returns,
+            'unlinked'  => $unlinked,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
+            'totalPaid' => $totalPaid,
+            'totalSales' => $totalSales,
+            'mappedCredit' => $mappedCredit,
             'totalReturns'   => $totalReturns,
+            'totalUnlinked'  => $totalUnlinked,
             'netPending'     => $netPending,
             'includePaid' => $includePaid,
         ];
@@ -1201,7 +1225,9 @@ class AuthController extends ApiBaseController
         $rows = $query->get();
 
         $totalDue = $rows->sum('due_amount');
-        $invoiceNoById = $rows->pluck('invoice_number', 'id');
+        $totalPaid = $rows->sum('paid_amount');
+        $totalSales = $rows->sum('total');
+        $shownIds = $rows->pluck('id')->all();
 
         // Credit notes (purchase returns) for the same supplier/period
         $hasLink = Schema::hasColumn('orders', 'original_order_id');
@@ -1217,25 +1243,43 @@ class AuthController extends ApiBaseController
             ->orderBy('order_date')
             ->get();
 
-        // List every credit note for the period and deduct all of them from NET.
-        // Tag each with its original bill number when linked (even if that bill
-        // is settled/paid and not shown above); unmapped returns have none.
+        $totalReturns = $returns->sum('total');
+
+        // Pair each bill row with the debit note(s) created against it, so the
+        // bill and its return(s) show on the same line with a per-row pending.
+        $returnsByOriginal = $hasLink
+            ? $returns->whereNotNull('original_order_id')->groupBy('original_order_id')
+            : collect();
+
+        foreach ($rows as $row) {
+            $linked = $returnsByOriginal->get($row->id, collect());
+            $row->credit_total = $linked->sum('total');
+            $row->credit_notes = $linked->pluck('invoice_number')->implode(', ');
+            $row->net_pending  = $row->due_amount - $row->credit_total;
+        }
+        $mappedCredit = $rows->sum('credit_total');
+
+        // Returns not linked to a shown bill (unlinked, or tied to a
+        // settled/paid/out-of-range bill) are listed separately but still netted.
         $linkedIds = $hasLink
             ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
             : [];
-        $origInvoiceNos = $invoiceNoById->all();
+        $origInvoiceNos = [];
         if (!empty($linkedIds)) {
-            $origInvoiceNos += Order::whereIn('id', $linkedIds)
+            $origInvoiceNos = Order::whereIn('id', $linkedIds)
                 ->pluck('invoice_number', 'id')->all();
         }
-
-        foreach ($returns as $cn) {
+        $unlinked = $returns->filter(function ($cn) use ($hasLink, $shownIds) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            return !($linkedId && in_array($linkedId, $shownIds));
+        })->values();
+        foreach ($unlinked as $cn) {
             $linkedId = $hasLink ? $cn->original_order_id : null;
             $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
         }
+        $totalUnlinked = $unlinked->sum('total');
 
-        $totalReturns = $returns->sum('total');
-        $netPending   = $totalDue - $totalReturns;
+        $netPending = $totalDue - $totalReturns;
 
         $company = Company::find($supplier->company_id);
 
@@ -1244,12 +1288,16 @@ class AuthController extends ApiBaseController
             'warehouse' => $warehouse,
             'supplier'  => $supplier,
             'rows'      => $rows,
-            'returns'   => $returns,
+            'unlinked'  => $unlinked,
             'from'      => $from,
             'to'        => $to,
             'today'     => now()->format('d-m-Y'),
             'totalDue'  => $totalDue,
+            'totalPaid' => $totalPaid,
+            'totalSales' => $totalSales,
+            'mappedCredit' => $mappedCredit,
             'totalReturns'   => $totalReturns,
+            'totalUnlinked'  => $totalUnlinked,
             'netPending'     => $netPending,
             'includePaid' => $includePaid,
         ];

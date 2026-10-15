@@ -128,9 +128,12 @@ to
 </p>
 
 @php
-    $returns = $returns ?? collect();
-    $totalReturns = $totalReturns ?? 0;
+    $unlinked = $unlinked ?? collect();
+    $mappedCredit = $mappedCredit ?? 0;
+    $totalUnlinked = $totalUnlinked ?? 0;
+    $totalReturns = $totalReturns ?? ($mappedCredit + $totalUnlinked);
     $netPending = $netPending ?? ($totalDue - $totalReturns);
+    $rowNetTotal = $totalDue - $mappedCredit;
     $comp = ($company && $company->name) ? $company->name : 'We';
     if ($netPending < -0.001) {
         $netLabel = 'NET REFUND (supplier to pay ' . $comp . ')';
@@ -142,7 +145,7 @@ to
     $netAmount = abs($netPending);
 @endphp
 
-@if($rows->count() || $returns->count())
+@if($rows->count() || $unlinked->count())
 
 <table class="table">
 <thead>
@@ -152,7 +155,9 @@ to
     <th>Due Days</th>
     <th>Total</th>
     <th>Paid</th>
-    <th>Pending</th>
+    <th>Debit Note</th>
+    <th>Debit Amt</th>
+    <th>Net Pending</th>
 </tr>
 </thead>
 
@@ -164,37 +169,46 @@ to
     <td>{{ $r->due_days }}</td>
     <td>{{ number_format($r->total,2) }}</td>
     <td>{{ number_format($r->paid_amount,2) }}</td>
-    <td>{{ number_format($r->due_amount,2) }}</td>
+    <td>{{ $r->credit_notes !== '' ? $r->credit_notes : '—' }}</td>
+    <td>{{ $r->credit_total > 0 ? '-'.number_format($r->credit_total,2) : '—' }}</td>
+    <td>{{ number_format($r->net_pending,2) }}</td>
 </tr>
 @endforeach
 
 <tr class="total-row">
-    <td colspan="5">TOTAL PENDING (INVOICES)</td>
-    <td>{{ number_format($totalDue,2) }}</td>
+    <td colspan="3">TOTAL</td>
+    <td>{{ number_format($totalSales,2) }}</td>
+    <td>{{ number_format($totalPaid,2) }}</td>
+    <td></td>
+    <td>-{{ number_format($mappedCredit,2) }}</td>
+    <td>{{ number_format($rowNetTotal,2) }}</td>
 </tr>
 
-@if($returns->count())
+@if($unlinked->count())
 <tr class="section-row">
-    <td colspan="6">Credit Notes</td>
+    <td colspan="8">Debit Notes not linked to a bill</td>
 </tr>
-@foreach($returns as $cn)
+@foreach($unlinked as $cn)
 <tr>
     <td>{{ $cn->invoice_number }}@if(!empty($cn->original_invoice)) ({{ $cn->original_invoice }})@endif</td>
     <td>{{ \Carbon\Carbon::parse($cn->order_date)->format('d-m-Y') }}</td>
-    <td>&mdash;</td>
+    <td>—</td>
     <td>-{{ number_format($cn->total,2) }}</td>
-    <td>&mdash;</td>
+    <td>—</td>
+    <td>—</td>
+    <td>-{{ number_format($cn->total,2) }}</td>
     <td>-{{ number_format($cn->total,2) }}</td>
 </tr>
 @endforeach
 <tr class="total-row">
-    <td colspan="5">TOTAL CREDIT NOTES</td>
-    <td>-{{ number_format($totalReturns,2) }}</td>
+    <td colspan="6">TOTAL UNLINKED DEBIT NOTES</td>
+    <td>-{{ number_format($totalUnlinked,2) }}</td>
+    <td>-{{ number_format($totalUnlinked,2) }}</td>
 </tr>
 @endif
 
 <tr class="net-row">
-    <td colspan="5">{{ $netLabel }}</td>
+    <td colspan="7">{{ $netLabel }}</td>
     <td>{{ number_format($netAmount,2) }}</td>
 </tr>
 </tbody>
