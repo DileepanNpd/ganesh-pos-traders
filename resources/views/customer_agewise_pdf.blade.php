@@ -56,6 +56,11 @@ body {
     background: #fafafa;
 }
 
+.table td:nth-child(2),
+.table th:nth-child(2) {
+    white-space: nowrap;
+}
+
 .total-row td {
     background: #ddd;
     font-weight: bold;

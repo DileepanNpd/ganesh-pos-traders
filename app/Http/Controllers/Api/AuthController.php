@@ -1388,31 +1388,73 @@ class AuthController extends ApiBaseController
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
 
-            // Hide settled or return-adjusted bills from the pending list
-            Common::excludePendingSettledOrReturned($query);
+            // Hide only manually-settled bills; keep return-adjusted bills visible
+            // because their credit notes are listed (and netted) below.
+            Common::excludePendingSettledOrReturned($query, false);
         }
-    
+
         $rows = $query->get();
-    
+
         $totalDue = $rows->sum('due_amount');
         $totalPaid = $rows->sum('paid_amount');
         $totalSales = $rows->sum('total');
-    
+
+        // Credit notes (sales returns) for all customers in the period
+        $hasLink = Schema::hasColumn('orders', 'original_order_id');
+        $returnCols = [
+            'users.name as customer_name',
+            'orders.invoice_number',
+            'orders.order_date',
+            'orders.total',
+        ];
+        if ($hasLink) {
+            $returnCols[] = 'orders.original_order_id';
+        }
+
+        $returns = Order::join('users', 'users.id', '=', 'orders.user_id')
+            ->where('orders.order_type', 'sales-returns')
+            ->whereBetween(DB::raw('DATE(orders.order_date)'), [$from, $to])
+            ->select($returnCols)
+            ->orderBy('orders.order_date')
+            ->orderBy('users.name')
+            ->get();
+
+        // Resolve each credit note's original invoice number (even if that bill
+        // is settled/paid and not shown above); unmapped returns have none.
+        $linkedIds = $hasLink
+            ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
+            : [];
+        $origInvoiceNos = [];
+        if (!empty($linkedIds)) {
+            $origInvoiceNos = Order::whereIn('id', $linkedIds)
+                ->pluck('invoice_number', 'id')->all();
+        }
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
+        }
+
+        $totalReturns = $returns->sum('total');
+        $netPending   = $totalDue - $totalReturns;
+
         $company = Company::first(); // or by auth company
         $warehouse = Warehouse::first();
-    
+
         $pdfData = [
             'rows' => $rows,
+            'returns' => $returns,
             'from' => $from,
             'to' => $to,
             'today' => now()->format('d-m-Y'),
             'totalDue' => $totalDue,
             'totalPaid' => $totalPaid,
             'totalSales' => $totalSales,
+            'totalReturns' => $totalReturns,
+            'netPending' => $netPending,
             'company' => $company,
             'warehouse' => $warehouse,
         ];
-    
+
         $pdf = PDF::loadView('all_sales_pending_invoices_pdf', $pdfData)
             ->setPaper('a5', 'landscape');
     
@@ -1445,31 +1487,73 @@ class AuthController extends ApiBaseController
         if (!$includePaid) {
             $query->where('due_amount', '>', 0);
 
-            // Hide settled or return-adjusted bills from the pending list
-            Common::excludePendingSettledOrReturned($query);
+            // Hide only manually-settled bills; keep return-adjusted bills visible
+            // because their credit notes are listed (and netted) below.
+            Common::excludePendingSettledOrReturned($query, false);
         }
-        
+
         $rows = $query->get();
-    
+
         $totalDue = $rows->sum('due_amount');
         $totalPaid = $rows->sum('paid_amount');
         $totalSales = $rows->sum('total');
-    
+
+        // Credit notes (purchase returns) for all suppliers in the period
+        $hasLink = Schema::hasColumn('orders', 'original_order_id');
+        $returnCols = [
+            'users.name as supplier_name',
+            'orders.invoice_number',
+            'orders.order_date',
+            'orders.total',
+        ];
+        if ($hasLink) {
+            $returnCols[] = 'orders.original_order_id';
+        }
+
+        $returns = Order::join('users', 'users.id', '=', 'orders.user_id')
+            ->where('orders.order_type', 'purchase-returns')
+            ->whereBetween(DB::raw('DATE(orders.order_date)'), [$from, $to])
+            ->select($returnCols)
+            ->orderBy('orders.order_date')
+            ->orderBy('users.name')
+            ->get();
+
+        // Resolve each credit note's original bill number (even if that bill is
+        // settled/paid and not shown above); unmapped returns have none.
+        $linkedIds = $hasLink
+            ? $returns->pluck('original_order_id')->filter()->unique()->values()->all()
+            : [];
+        $origInvoiceNos = [];
+        if (!empty($linkedIds)) {
+            $origInvoiceNos = Order::whereIn('id', $linkedIds)
+                ->pluck('invoice_number', 'id')->all();
+        }
+        foreach ($returns as $cn) {
+            $linkedId = $hasLink ? $cn->original_order_id : null;
+            $cn->original_invoice = $linkedId ? ($origInvoiceNos[$linkedId] ?? null) : null;
+        }
+
+        $totalReturns = $returns->sum('total');
+        $netPending   = $totalDue - $totalReturns;
+
         $company = Company::first(); // or by auth company
         $warehouse = Warehouse::first();
-    
+
         $pdfData = [
             'rows' => $rows,
+            'returns' => $returns,
             'from' => $from,
             'to' => $to,
             'today' => now()->format('d-m-Y'),
             'totalDue' => $totalDue,
             'totalPaid' => $totalPaid,
             'totalSales' => $totalSales,
+            'totalReturns' => $totalReturns,
+            'netPending' => $netPending,
             'company' => $company,
             'warehouse' => $warehouse,
         ];
-    
+
         $pdf = PDF::loadView('all_purchases_pending_invoices_pdf', $pdfData)
             ->setPaper('a5', 'landscape');
     
