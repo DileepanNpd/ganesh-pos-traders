@@ -1025,7 +1025,10 @@ class AuthController extends ApiBaseController
             $linked = $returnsByOriginal->get($row->id, collect())->values();
             $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->net_pending  = $row->due_amount - $row->credit_total;
+            $net = $row->due_amount - $row->credit_total;
+            // A fully-returned bill can net to +/-1 from independent round-off on
+            // the sale and its return; treat a <=1 residual against a return as settled.
+            $row->net_pending = ($row->credit_total > 0 && abs($net) <= 1) ? 0 : $net;
         }
         $mappedCredit = $rows->sum('credit_total');
 
@@ -1049,7 +1052,8 @@ class AuthController extends ApiBaseController
         }
         $totalUnlinked = $unlinked->sum('total');
 
-        $netPending = $totalDue - $totalReturns;
+        // Grand net reflects the per-bill round-off snapping above.
+        $netPending = $rows->sum('net_pending') - $totalUnlinked;
 
         $company = Company::find($customer->company_id);
 
@@ -1255,7 +1259,10 @@ class AuthController extends ApiBaseController
             $linked = $returnsByOriginal->get($row->id, collect())->values();
             $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->net_pending  = $row->due_amount - $row->credit_total;
+            $net = $row->due_amount - $row->credit_total;
+            // A fully-returned bill can net to +/-1 from independent round-off on
+            // the sale and its return; treat a <=1 residual against a return as settled.
+            $row->net_pending = ($row->credit_total > 0 && abs($net) <= 1) ? 0 : $net;
         }
         $mappedCredit = $rows->sum('credit_total');
 
@@ -1279,7 +1286,8 @@ class AuthController extends ApiBaseController
         }
         $totalUnlinked = $unlinked->sum('total');
 
-        $netPending = $totalDue - $totalReturns;
+        // Grand net reflects the per-bill round-off snapping above.
+        $netPending = $rows->sum('net_pending') - $totalUnlinked;
 
         $company = Company::find($supplier->company_id);
 
@@ -1480,7 +1488,10 @@ class AuthController extends ApiBaseController
             $linked = $returnsByOriginal->get($row->id, collect())->values();
             $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->net_pending  = $row->due_amount - $row->credit_total;
+            $net = $row->due_amount - $row->credit_total;
+            // A fully-returned bill can net to +/-1 from independent round-off on
+            // the sale and its return; treat a <=1 residual against a return as settled.
+            $row->net_pending = ($row->credit_total > 0 && abs($net) <= 1) ? 0 : $net;
         }
         $mappedCredit = $rows->sum('credit_total');
 
@@ -1503,7 +1514,8 @@ class AuthController extends ApiBaseController
         }
         $totalUnlinked = $unlinked->sum('total');
 
-        $netPending = $totalDue - $totalReturns;
+        // Grand net reflects the per-bill round-off snapping above.
+        $netPending = $rows->sum('net_pending') - $totalUnlinked;
 
         $company = Company::first(); // or by auth company
         $warehouse = Warehouse::first();
@@ -1601,7 +1613,10 @@ class AuthController extends ApiBaseController
             $linked = $returnsByOriginal->get($row->id, collect())->values();
             $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->net_pending  = $row->due_amount - $row->credit_total;
+            $net = $row->due_amount - $row->credit_total;
+            // A fully-returned bill can net to +/-1 from independent round-off on
+            // the sale and its return; treat a <=1 residual against a return as settled.
+            $row->net_pending = ($row->credit_total > 0 && abs($net) <= 1) ? 0 : $net;
         }
         $mappedCredit = $rows->sum('credit_total');
 
@@ -1624,7 +1639,8 @@ class AuthController extends ApiBaseController
         }
         $totalUnlinked = $unlinked->sum('total');
 
-        $netPending = $totalDue - $totalReturns;
+        // Grand net reflects the per-bill round-off snapping above.
+        $netPending = $rows->sum('net_pending') - $totalUnlinked;
 
         $company = Company::first(); // or by auth company
         $warehouse = Warehouse::first();
