@@ -1022,9 +1022,9 @@ class AuthController extends ApiBaseController
             : collect();
 
         foreach ($rows as $row) {
-            $linked = $returnsByOriginal->get($row->id, collect());
+            $linked = $returnsByOriginal->get($row->id, collect())->values();
+            $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->credit_notes = $linked->pluck('invoice_number')->implode(', ');
             $row->net_pending  = $row->due_amount - $row->credit_total;
         }
         $mappedCredit = $rows->sum('credit_total');
@@ -1252,9 +1252,9 @@ class AuthController extends ApiBaseController
             : collect();
 
         foreach ($rows as $row) {
-            $linked = $returnsByOriginal->get($row->id, collect());
+            $linked = $returnsByOriginal->get($row->id, collect())->values();
+            $row->linked_returns = $linked;
             $row->credit_total = $linked->sum('total');
-            $row->credit_notes = $linked->pluck('invoice_number')->implode(', ');
             $row->net_pending  = $row->due_amount - $row->credit_total;
         }
         $mappedCredit = $rows->sum('credit_total');
