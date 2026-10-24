@@ -1,0 +1,9 @@
+# Security hardening: block execution of scripts uploaded to this directory.
+# This directory only serves static user-uploaded files (images, pdf, office docs).
+<FilesMatch "\.(php|phtml|phar|pht|php[0-9]|cgi|pl|py|sh|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule \.(php|phtml|phar|pht|php[0-9])$ - [F,L]
+</IfModule>
